@@ -35,15 +35,14 @@ class MainActivity : AppCompatActivity() {
             return
         }
         Single.defer {
-            someLongRunningTask()
-            Single.just("Hello..")
+            Single.just(someLongRunningTask())
         }.subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(object : SingleObserver<String> {
                 override fun onSuccess(t: String) {
-                    resultListener.onSuccess(key ?: "")
+                    resultListener.onSuccess(t)
                     key?.let {
-                        cacheRepository.saveData(key, it)
+                        cacheRepository.saveData(key, t)
                     }
                 }
 
@@ -57,7 +56,8 @@ class MainActivity : AppCompatActivity() {
             })
     }
 
-    private fun someLongRunningTask() {
-        Thread.sleep(2000)
+    private fun someLongRunningTask(): String {
+        Thread.sleep(4000)
+        return "Hello.."
     }
 }
