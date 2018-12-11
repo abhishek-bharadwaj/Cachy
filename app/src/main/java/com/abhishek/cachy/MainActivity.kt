@@ -27,24 +27,35 @@ class MainActivity : AppCompatActivity() {
     private suspend fun getMoviesData(): MovieData? {
 
         val key = object {}.javaClass.enclosingMethod?.toString()?.replace("\\s".toRegex(), "")
-        if (key != null && cacheRepository.isDataPresent(key)) {
-            Log.d(TAG, "Got data form cache..")
-            val data = cacheRepository.getData(key, MovieData::class.java)
-            Log.d(TAG, "data is ${data.title}")
-            return data
-        }
+        val cachedData = getDataFromCache(key)
+        if (cachedData != null) return cachedData
 
         val response = Api.apiService.getAllMovies().await()
         val movieData = response.body()?.first()
         return if (response.isSuccessful && movieData != null) {
             Log.d(TAG, "Got data form api..")
-            key?.let {
-                cacheRepository.saveData(it, movieData)
-                Log.d(TAG, "Saving data --> ${movieData.title}")
-            }
+            saveDataToCache(key, movieData)
             return movieData
         } else {
             null
         }
+    }
+
+    private fun getDataFromCache(key: String?): MovieData? {
+//        val key = object {}.javaClass.enclosingMethod?.toString()?.replace("\\s".toRegex(), "")
+        if (key == null || !cacheRepository.isDataPresent(key)) return null
+        Log.d(TAG, "Got data form cache..")
+        val data = cacheRepository.getData(key, MovieData::class.java)
+        Log.d(TAG, "data is --> ${data.title}")
+        return data
+    }
+
+    private fun saveDataToCache(key: String?, movieData: MovieData) {
+        if (key == null) {
+            Log.d(TAG, "Saving to cache failed key is null")
+            return
+        }
+        cacheRepository.saveData(key, movieData)
+        Log.d(TAG, "Saving data --> ${movieData.title}")
     }
 }
