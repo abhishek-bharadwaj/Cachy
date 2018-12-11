@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Cachy</string>
+    <string name="hello_coroutines">Hello from Kotlin Coroutines!</string>
 </resources>

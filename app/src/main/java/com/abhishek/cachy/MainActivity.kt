@@ -2,12 +2,15 @@ package com.abhishek.cachy
 
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
-import android.util.Log
 import io.reactivex.Single
 import io.reactivex.SingleObserver
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
+import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -17,7 +20,22 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        mockApiCall(object : ResultListener<String> {
+
+        pb.visible()
+        GlobalScope.launch(Dispatchers.Main) {
+            val response = Api.apiService.getAllMovies().await()
+            val movieData = response.body()
+            pb.gone()
+            tv.visible()
+            if (response.isSuccessful && movieData?.isNotEmpty() == true) {
+                movieData.forEach {
+                    tv.append("${it.title}\n")
+                }
+            } else {
+                tv.text = "Api call failed ${response.code()}"
+            }
+        }
+        /*mockApiCall(object : ResultListener<String> {
             override fun onSuccess(t: String) {
                 Log.v(TAG, t)
             }
@@ -25,25 +43,17 @@ class MainActivity : AppCompatActivity() {
             override fun onFailure(e: Throwable) {
                 Log.e(TAG, e.message)
             }
-        })
+        })*/
     }
 
     private fun mockApiCall(resultListener: ResultListener<String>) {
-        val key = object {}.javaClass.enclosingMethod?.toString()?.replace("\\s".toRegex(), "")
-        if (key != null && cacheRepository.isDataPresent(key)) {
-            resultListener.onSuccess(cacheRepository.getData(key, String::class.java))
-            return
-        }
         Single.defer {
-            Single.just(someLongRunningTask())
+            Single.just(getData())
         }.subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(object : SingleObserver<String> {
                 override fun onSuccess(t: String) {
                     resultListener.onSuccess(t)
-                    key?.let {
-                        cacheRepository.saveData(key, t)
-                    }
                 }
 
                 override fun onSubscribe(d: Disposable) {
@@ -54,6 +64,16 @@ class MainActivity : AppCompatActivity() {
                     resultListener.onFailure(e)
                 }
             })
+    }
+
+    private fun getData(): String {
+        val key = object {}.javaClass.enclosingMethod?.toString()?.replace("\\s".toRegex(), "")
+        if (key != null && cacheRepository.isDataPresent(key)) {
+            return cacheRepository.getData(key, String::class.java)
+        }
+        val data = someLongRunningTask()
+        key?.let { cacheRepository.saveData(it, data) }
+        return data
     }
 
     private fun someLongRunningTask(): String {
